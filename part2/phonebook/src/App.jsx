@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
+import Notification from './components/Notification'
 import personService from './services/persons'
 
 const App = () => {
@@ -9,18 +10,25 @@ const App = () => {
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [filter, setFilter] = useState('')
+  const [notification, setNotification] = useState({ 
+    message: null, 
+    type: null 
+  })
 
-  // Ejercicio 2.12: Obtener datos del backend
   useEffect(() => {
     personService
       .getAll()
       .then(initialPersons => {
         setPersons(initialPersons)
       })
-      .catch(error => {
-        console.error('Error fetching persons:', error)
-      })
   }, [])
+
+  const showNotification = (message, type) => {
+    setNotification({ message, type })
+    setTimeout(() => {
+      setNotification({ message: null, type: null })
+    }, 5000)
+  }
 
   const handleNameChange = (event) => {
     setNewName(event.target.value)
@@ -34,7 +42,6 @@ const App = () => {
     setFilter(event.target.value)
   }
 
-  // Ejercicio 2.15: Actualizar número existente
   const updatePerson = (id, updatedPerson) => {
     personService
       .update(id, updatedPerson)
@@ -42,28 +49,39 @@ const App = () => {
         setPersons(persons.map(person => 
           person.id !== id ? person : returnedPerson
         ))
+        showNotification(`Updated ${updatedPerson.name}'s number`, 'success')
         setNewName('')
         setNewNumber('')
       })
       .catch(error => {
-        console.error('Error updating person:', error)
-        alert(`Person '${updatedPerson.name}' was already removed from server`)
-        setPersons(persons.filter(person => person.id !== id))
+        if (error.response && error.response.status === 404) {
+          showNotification(
+            `Information of ${updatedPerson.name} has already been removed from server`,
+            'error'
+          )
+          setPersons(persons.filter(person => person.id !== id))
+        }
+        setNewName('')
+        setNewNumber('')
       })
   }
 
-  // Ejercicio 2.14: Eliminar persona
   const handleDelete = (id, name) => {
     if (window.confirm(`Delete ${name}?`)) {
       personService
         .remove(id)
         .then(() => {
           setPersons(persons.filter(person => person.id !== id))
+          showNotification(`Deleted ${name}`, 'success')
         })
         .catch(error => {
-          console.error('Error deleting person:', error)
-          alert(`Person '${name}' was already removed from server`)
-          setPersons(persons.filter(person => person.id !== id))
+          if (error.response && error.response.status === 404) {
+            showNotification(
+              `Information of ${name} has already been removed from server`,
+              'error'
+            )
+            setPersons(persons.filter(person => person.id !== id))
+          }
         })
     }
   }
@@ -71,11 +89,15 @@ const App = () => {
   const addPerson = (event) => {
     event.preventDefault()
     
+    if (!newName.trim() || !newNumber.trim()) {
+      showNotification('Name and number are required', 'error')
+      return
+    }
+    
     const existingPerson = persons.find(person => 
       person.name.toLowerCase() === newName.toLowerCase()
     )
     
-    // Ejercicio 2.15: Si existe, preguntar si actualizar
     if (existingPerson) {
       const confirmUpdate = window.confirm(
         `${newName} is already added to phonebook, replace the old number with a new one?`
@@ -87,6 +109,9 @@ const App = () => {
           number: newNumber
         }
         updatePerson(existingPerson.id, updatedPerson)
+      } else {
+        setNewName('')
+        setNewNumber('')
       }
       return
     }
@@ -96,22 +121,29 @@ const App = () => {
       number: newNumber
     }
     
-    // Ejercicio 2.12: Guardar en backend
     personService
       .create(newPerson)
       .then(returnedPerson => {
         setPersons(persons.concat(returnedPerson))
+        showNotification(`Added ${newName}`, 'success')
         setNewName('')
         setNewNumber('')
       })
       .catch(error => {
-        console.error('Error creating person:', error)
+        showNotification(`Error adding ${newName}: ${error.message}`, 'error')
+        setNewName('')
+        setNewNumber('')
       })
   }
 
   return (
     <div>
       <h2>Phonebook</h2>
+      
+      <Notification 
+        message={notification.message} 
+        type={notification.type} 
+      />
       
       <Filter 
         filter={filter} 
