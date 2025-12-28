@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
+import personService from './services/persons'
 
 const App = () => {
   const [persons, setPersons] = useState([])
@@ -10,18 +10,17 @@ const App = () => {
   const [newNumber, setNewNumber] = useState('')
   const [filter, setFilter] = useState('')
 
-  // Ejercicio 2.11: useEffect para obtener datos iniciales
+  // Ejercicio 2.12: Obtener datos del backend
   useEffect(() => {
-    console.log('effect')
-    axios
-      .get('http://localhost:3001/persons')
-      .then(response => {
-        console.log('promise fulfilled')
-        setPersons(response.data)
+    personService
+      .getAll()
+      .then(initialPersons => {
+        setPersons(initialPersons)
+      })
+      .catch(error => {
+        console.error('Error fetching persons:', error)
       })
   }, [])
-
-  console.log('render', persons.length, 'persons')
 
   const handleNameChange = (event) => {
     setNewName(event.target.value)
@@ -35,31 +34,78 @@ const App = () => {
     setFilter(event.target.value)
   }
 
+  // Ejercicio 2.15: Actualizar número existente
+  const updatePerson = (id, updatedPerson) => {
+    personService
+      .update(id, updatedPerson)
+      .then(returnedPerson => {
+        setPersons(persons.map(person => 
+          person.id !== id ? person : returnedPerson
+        ))
+        setNewName('')
+        setNewNumber('')
+      })
+      .catch(error => {
+        console.error('Error updating person:', error)
+        alert(`Person '${updatedPerson.name}' was already removed from server`)
+        setPersons(persons.filter(person => person.id !== id))
+      })
+  }
+
+  // Ejercicio 2.14: Eliminar persona
+  const handleDelete = (id, name) => {
+    if (window.confirm(`Delete ${name}?`)) {
+      personService
+        .remove(id)
+        .then(() => {
+          setPersons(persons.filter(person => person.id !== id))
+        })
+        .catch(error => {
+          console.error('Error deleting person:', error)
+          alert(`Person '${name}' was already removed from server`)
+          setPersons(persons.filter(person => person.id !== id))
+        })
+    }
+  }
+
   const addPerson = (event) => {
     event.preventDefault()
     
-    const personExists = persons.some(person => 
+    const existingPerson = persons.find(person => 
       person.name.toLowerCase() === newName.toLowerCase()
     )
     
-    if (personExists) {
-      alert(`${newName} is already added to phonebook`)
+    // Ejercicio 2.15: Si existe, preguntar si actualizar
+    if (existingPerson) {
+      const confirmUpdate = window.confirm(
+        `${newName} is already added to phonebook, replace the old number with a new one?`
+      )
+      
+      if (confirmUpdate) {
+        const updatedPerson = {
+          ...existingPerson,
+          number: newNumber
+        }
+        updatePerson(existingPerson.id, updatedPerson)
+      }
       return
     }
     
     const newPerson = {
       name: newName,
-      number: newNumber,
-      id: persons.length > 0 ? persons[persons.length - 1].id + 1 : 1
+      number: newNumber
     }
     
-    // Guardar en el servidor
-    axios
-      .post('http://localhost:3001/persons', newPerson)
-      .then(response => {
-        setPersons(persons.concat(response.data))
+    // Ejercicio 2.12: Guardar en backend
+    personService
+      .create(newPerson)
+      .then(returnedPerson => {
+        setPersons(persons.concat(returnedPerson))
         setNewName('')
         setNewNumber('')
+      })
+      .catch(error => {
+        console.error('Error creating person:', error)
       })
   }
 
@@ -84,7 +130,11 @@ const App = () => {
       
       <h3>Numbers</h3>
       
-      <Persons persons={persons} filter={filter} />
+      <Persons 
+        persons={persons} 
+        filter={filter}
+        handleDelete={handleDelete}
+      />
     </div>
   )
 }
