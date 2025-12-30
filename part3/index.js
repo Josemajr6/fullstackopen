@@ -3,19 +3,19 @@ const cors = require('cors')
 const morgan = require('morgan')
 const app = express()
 
-// Ejercicio 3.8: Token personalizado para datos POST
+// Middleware
+app.use(cors())
+app.use(express.json())
+app.use(express.static('dist'))  
+
+// Morgan para logging
 morgan.token('body', (req) => {
   if (req.method === 'POST') {
     return JSON.stringify(req.body)
   }
   return ''
 })
-
-// Ejercicio 3.7: Configurar morgan con formato personalizado
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
-
-app.use(cors())
-app.use(express.json())
 
 // Datos iniciales
 let persons = [
@@ -46,9 +46,9 @@ const generateId = () => {
   return Math.floor(Math.random() * 1000000)
 }
 
-// Ruta principal
+// Ruta principal - ahora sirve el frontend
 app.get('/', (request, response) => {
-  response.send('<h1>Phonebook Backend</h1>')
+  response.send('<h1>Phonebook Backend</h1><p>Frontend is served from /dist directory</p>')
 })
 
 // Info page
