@@ -43,7 +43,7 @@ app.get('/api/persons/:id', (request, response, next) => {
     .catch(error => next(error))
 })
 
-// DELETE person (Ejercicio 3.15)
+// DELETE person
 app.delete('/api/persons/:id', (request, response, next) => {
   Person.findByIdAndDelete(request.params.id)
     .then(result => {
@@ -78,14 +78,14 @@ app.post('/api/persons', (request, response, next) => {
     .catch(error => next(error))
 })
 
-// PUT update person (Ejercicio 3.17)
+// PUT update person
 app.put('/api/persons/:id', (request, response, next) => {
   const { name, number } = request.body
 
   Person.findByIdAndUpdate(
     request.params.id,
     { name, number },
-    { 
+    {
       new: true,
       runValidators: true,
       context: 'query'
@@ -101,7 +101,7 @@ app.put('/api/persons/:id', (request, response, next) => {
     .catch(error => next(error))
 })
 
-// Info endpoint (Ejercicio 3.18)
+// Info endpoint
 app.get('/info', (request, response, next) => {
   Person.countDocuments({})
     .then(count => {

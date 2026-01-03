@@ -18,6 +18,10 @@ Backend para la aplicación Phonebook del curso Full Stack Open.
 - `DELETE /api/persons/:id` - Eliminar contacto
 - `GET /info` - Información de la agenda
 
+## Validaciones
+- **Nombre:** mínimo 3 caracteres, único
+- **Teléfono:** formato XX-XXXXXX o XXX-XXXXXXX (mínimo 8 caracteres)
+
 ## Ejecutar localmente
 ```bash
 npm install
