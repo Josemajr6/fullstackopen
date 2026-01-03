@@ -21,6 +21,9 @@ const App = () => {
       .then(initialPersons => {
         setPersons(initialPersons)
       })
+      .catch(error => {
+        showNotification('Error loading contacts', 'error')
+      })
   }, [])
 
   const showNotification = (message, type) => {
@@ -42,7 +45,8 @@ const App = () => {
     setFilter(event.target.value)
   }
 
-  const updatePerson = (id, updatedPerson) => {
+  // Función separada para actualizar persona
+  const updateExistingPerson = (id, updatedPerson) => {
     personService
       .update(id, updatedPerson)
       .then(returnedPerson => {
@@ -54,11 +58,15 @@ const App = () => {
         setNewNumber('')
       })
       .catch(error => {
-        if (error.response && error.response.status === 404) {
-          showNotification(
-            `Information of ${updatedPerson.name} has already been removed from server`,
-            'error'
-          )
+        // Ejercicio 3.19: Mostrar mensaje de error de validación
+        const errorMessage = error.response?.data?.error || 
+          (error.response?.status === 404 
+            ? `Information of ${updatedPerson.name} has already been removed from server`
+            : 'Error updating contact')
+        
+        showNotification(errorMessage, 'error')
+        
+        if (error.response?.status === 404) {
           setPersons(persons.filter(person => person.id !== id))
         }
         setNewName('')
@@ -75,12 +83,14 @@ const App = () => {
           showNotification(`Deleted ${name}`, 'success')
         })
         .catch(error => {
-          if (error.response && error.response.status === 404) {
+          if (error.response?.status === 404) {
             showNotification(
               `Information of ${name} has already been removed from server`,
               'error'
             )
             setPersons(persons.filter(person => person.id !== id))
+          } else {
+            showNotification(`Error deleting ${name}: ${error.message}`, 'error')
           }
         })
     }
@@ -89,8 +99,26 @@ const App = () => {
   const addPerson = (event) => {
     event.preventDefault()
     
-    if (!newName.trim() || !newNumber.trim()) {
-      showNotification('Name and number are required', 'error')
+    // Validación básica del frontend
+    if (!newName.trim()) {
+      showNotification('Name is required', 'error')
+      return
+    }
+    
+    if (!newNumber.trim()) {
+      showNotification('Phone number is required', 'error')
+      return
+    }
+    
+    if (newName.length < 3) {
+      showNotification('Name must be at least 3 characters long', 'error')
+      return
+    }
+    
+    // Validación básica de formato de teléfono en frontend
+    const phoneRegex = /^\d{2,3}-\d+$/
+    if (!phoneRegex.test(newNumber)) {
+      showNotification('Phone number format: XX-XXXXXX or XXX-XXXXXXX', 'error')
       return
     }
     
@@ -108,7 +136,7 @@ const App = () => {
           ...existingPerson,
           number: newNumber
         }
-        updatePerson(existingPerson.id, updatedPerson)
+        updateExistingPerson(existingPerson.id, updatedPerson)
       } else {
         setNewName('')
         setNewNumber('')
@@ -130,7 +158,11 @@ const App = () => {
         setNewNumber('')
       })
       .catch(error => {
-        showNotification(`Error adding ${newName}: ${error.message}`, 'error')
+        // Ejercicio 3.19: Mostrar mensaje de error de validación del backend
+        const errorMessage = error.response?.data?.error || 
+          'Error adding contact. Please check the data and try again.'
+        
+        showNotification(errorMessage, 'error')
         setNewName('')
         setNewNumber('')
       })
