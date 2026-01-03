@@ -1,6 +1,5 @@
 const mongoose = require('mongoose')
 
-
 const url = process.env.MONGODB_URI
 
 console.log('Connecting to MongoDB...')
@@ -14,12 +13,13 @@ const personSchema = new mongoose.Schema({
   name: {
     type: String,
     minLength: 3,
-    required: true
+    required: [true, 'Name is required'],
+    unique: true  
   },
   number: {
     type: String,
     minLength: 8,
-    required: true,
+    required: [true, 'Number is required'],
     validate: {
       validator: function(v) {
         return /^\d{2,3}-\d+$/.test(v)
@@ -29,7 +29,7 @@ const personSchema = new mongoose.Schema({
   }
 })
 
-// Transformar objeto para eliminar __v y cambiar _id a id
+// Transformar objeto
 personSchema.set('toJSON', {
   transform: (document, returnedObject) => {
     returnedObject.id = returnedObject._id.toString()
@@ -38,7 +38,6 @@ personSchema.set('toJSON', {
   }
 })
 
-// Crear modelo
 const Person = mongoose.model('Person', personSchema)
 
 module.exports = Person

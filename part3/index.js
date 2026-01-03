@@ -3,6 +3,7 @@ const express = require('express')
 const cors = require('cors')
 const morgan = require('morgan')
 const Person = require('./models/person')
+const { errorHandler, unknownEndpoint } = require('./utils/middleware')
 
 const app = express()
 
@@ -13,14 +14,14 @@ app.use(express.static('dist'))
 
 // Morgan logging
 morgan.token('body', (req) => {
-  if (req.method === 'POST') {
+  if (req.method === 'POST' || req.method === 'PUT') {
     return JSON.stringify(req.body)
   }
   return ''
 })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
 
-// Ejercicio 3.13: GET all persons desde MongoDB
+// GET all persons
 app.get('/api/persons', (request, response, next) => {
   Person.find({})
     .then(persons => {
@@ -29,21 +30,45 @@ app.get('/api/persons', (request, response, next) => {
     .catch(error => next(error))
 })
 
-// Ejercicio 3.14: POST new person a MongoDB
-app.post('/api/persons', (request, response, next) => {
-  const body = request.body
+// GET single person
+app.get('/api/persons/:id', (request, response, next) => {
+  Person.findById(request.params.id)
+    .then(person => {
+      if (person) {
+        response.json(person)
+      } else {
+        response.status(404).json({ error: 'person not found' })
+      }
+    })
+    .catch(error => next(error))
+})
 
-  // Validación básica
-  if (!body.name || !body.number) {
+// DELETE person (Ejercicio 3.15)
+app.delete('/api/persons/:id', (request, response, next) => {
+  Person.findByIdAndDelete(request.params.id)
+    .then(result => {
+      if (result) {
+        response.status(204).end()
+      } else {
+        response.status(404).json({ error: 'person not found' })
+      }
+    })
+    .catch(error => next(error))
+})
+
+// POST new person
+app.post('/api/persons', (request, response, next) => {
+  const { name, number } = request.body
+
+  if (!name || !number) {
     return response.status(400).json({
       error: 'name or number missing'
     })
   }
 
-  // EJERCICIO 3.14: Crear y guardar en MongoDB
   const person = new Person({
-    name: body.name,
-    number: body.number
+    name,
+    number
   })
 
   person.save()
@@ -53,31 +78,30 @@ app.post('/api/persons', (request, response, next) => {
     .catch(error => next(error))
 })
 
-// Mantener endpoints existentes (GET single, DELETE, INFO)
-app.get('/api/persons/:id', (request, response, next) => {
-  Person.findById(request.params.id)
-    .then(person => {
-      if (person) {
-        response.json(person)
+// PUT update person (Ejercicio 3.17)
+app.put('/api/persons/:id', (request, response, next) => {
+  const { name, number } = request.body
+
+  Person.findByIdAndUpdate(
+    request.params.id,
+    { name, number },
+    { 
+      new: true,
+      runValidators: true,
+      context: 'query'
+    }
+  )
+    .then(updatedPerson => {
+      if (updatedPerson) {
+        response.json(updatedPerson)
       } else {
-        response.status(404).end()
+        response.status(404).json({ error: 'person not found' })
       }
     })
     .catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (request, response, next) => {
-  Person.findByIdAndDelete(request.params.id)
-    .then(result => {
-      if (result) {
-        response.status(204).end()
-      } else {
-        response.status(404).end()
-      }
-    })
-    .catch(error => next(error))
-})
-
+// Info endpoint (Ejercicio 3.18)
 app.get('/info', (request, response, next) => {
   Person.countDocuments({})
     .then(count => {
@@ -90,19 +114,8 @@ app.get('/info', (request, response, next) => {
     .catch(error => next(error))
 })
 
-// Middleware de manejo de errores
-const errorHandler = (error, request, response, next) => {
-  console.error(error.message)
-
-  if (error.name === 'CastError') {
-    return response.status(400).send({ error: 'malformatted id' })
-  } else if (error.name === 'ValidationError') {
-    return response.status(400).json({ error: error.message })
-  }
-
-  next(error)
-}
-
+// Middleware
+app.use(unknownEndpoint)
 app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
